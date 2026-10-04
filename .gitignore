@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+data/*.sqlite
+data/*.sqlite-shm
+data/*.sqlite-wal
+data/catalog.json
+data/card-games.json
+# Bancos, caches e backups gerados localmente, inclusive em subpastas.
+data/**
+*.log
