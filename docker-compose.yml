@@ -1,0 +1,13 @@
+services:
+  steam-card-roi:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    volumes:
+      - steam_roi_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  steam_roi_data:
