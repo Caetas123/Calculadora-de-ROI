@@ -1,0 +1,122 @@
+openapi: 3.0.3
+info:
+  title: API de ROI das cartas Steam
+  version: 1.0.0
+  description: Ranking de oportunidades de farming de cartas colecionáveis da Steam em BRL.
+servers:
+  - url: http://localhost:3000
+paths:
+  /api/health:
+    get:
+      summary: Verificação de integridade
+      responses: { '200': { description: Serviço disponível } }
+  /api/stats:
+    get:
+      summary: Contadores do painel e melhores oportunidades
+      responses: { '200': { description: Estatísticas do painel } }
+  /api/games:
+    get:
+      summary: Jogos classificados
+      parameters:
+        - { in: query, name: sort, description: Campo de ordenação, schema: { type: string, enum: [roi, profit, price, expected, discount, liquidity, drops, instant] } }
+        - { in: query, name: positive, description: Restringe a lucro positivo, schema: { type: integer, enum: [0, 1] } }
+        - { in: query, name: priceMax, description: Preço máximo em BRL, schema: { type: number } }
+        - { in: query, name: roiMin, description: ROI mínimo em porcentagem, schema: { type: number } }
+        - { in: query, name: discountMin, description: Desconto mínimo em porcentagem, schema: { type: number } }
+        - { in: query, name: limit, description: Quantidade de itens devolvidos, schema: { type: integer, default: 100, maximum: 500 } }
+        - { in: query, name: offset, description: Número de itens ignorados antes da página, schema: { type: integer, default: 0, minimum: 0 } }
+      responses: { '200': { description: Lista de oportunidades } }
+  /api/opportunities:
+    get:
+      summary: Oportunidades paginadas
+      description: Aplica os filtros em todo o conjunto, calcula o total e devolve apenas a página solicitada. A resposta tem data e total.
+      parameters:
+        - { in: query, name: sort, description: Campo de ordenação, schema: { type: string, enum: [roi, profit, price, expected, discount, liquidity, drops, instant], default: roi } }
+        - { in: query, name: search, description: Busca por nome ou AppID, schema: { type: string } }
+        - { in: query, name: page, description: Número da página começando em 1, schema: { type: integer, default: 1, minimum: 1 } }
+        - { in: query, name: pageSize, description: Quantidade de itens por página, schema: { type: integer, default: 20, minimum: 1, maximum: 500 } }
+        - { in: query, name: promotion, description: Mostra somente promoções, schema: { type: integer, enum: [0, 1] } }
+        - { in: query, name: positive, description: Mostra somente lucro positivo, schema: { type: integer, enum: [0, 1] } }
+        - { in: query, name: excludeFree, description: Exclui jogos grátis, schema: { type: integer, enum: [0, 1] } }
+        - { in: query, name: excludeUnavailable, description: Exclui itens indisponíveis no Brasil, schema: { type: integer, enum: [0, 1] } }
+        - { in: query, name: priceMax, description: Preço máximo em BRL, schema: { type: number } }
+        - { in: query, name: priceMin, description: Preço mínimo em BRL, schema: { type: number } }
+        - { in: query, name: roiMin, description: ROI mínimo em porcentagem, schema: { type: number } }
+        - { in: query, name: profitMin, description: Lucro mínimo em BRL, schema: { type: number } }
+        - { in: query, name: dropsMin, description: Quantidade mínima de drops, schema: { type: number } }
+        - { in: query, name: cardsMin, description: Tamanho mínimo do conjunto, schema: { type: number } }
+        - { in: query, name: discountMin, description: Desconto mínimo em porcentagem, schema: { type: number } }
+        - { in: query, name: volumeMin, description: Liquidez mínima, schema: { type: number } }
+        - { in: query, name: updatedOnly, description: Mostra somente dados recentes, schema: { type: integer, enum: [0, 1] } }
+      responses: { '200': { description: Página de oportunidades com data e total } }
+  /api/opportunities/top:
+    get:
+      summary: Melhores oportunidades, limitado a 20
+      responses: { '200': { description: Lista das melhores oportunidades } }
+  /api/games/{appid}:
+    get:
+      summary: Detalhes do jogo, cartas normais e variantes foil/especiais
+      description: O campo cards contém somente cartas normais usadas no ROI. O campo special_cards contém foils e eventuais variantes especiais para consulta, sempre fora dos cálculos.
+      parameters: [{ in: path, name: appid, required: true, schema: { type: integer } }]
+      responses:
+        '200':
+          description: Oportunidade com cartas normais e especiais separadas
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OportunidadeDetalhada' }
+        '404': { description: Jogo não encontrado }
+  /api/cards/{appid}:
+    get:
+      summary: Conjunto de cartas normais de um AppID
+      parameters: [{ in: path, name: appid, required: true, schema: { type: integer } }]
+      responses: { '200': { description: Lista de cartas } }
+  /api/games/{appid}/history:
+    get:
+      summary: Retratos agregados do preço do jogo
+      responses: { '200': { description: Lista histórica } }
+  /api/market/cards/{appid}/{hashName}/history:
+    get:
+      summary: Retratos agregados do mercado da carta
+      responses: { '200': { description: Lista histórica } }
+  /api/scans/latest:
+    get:
+      summary: Execução mais recente da varredura
+      responses: { '200': { description: Resumo da varredura } }
+  /api/scan:
+    post:
+      summary: Inicia uma varredura incremental do catálogo
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, properties: { limit: { type: integer, minimum: 0, default: 100 } } }
+      responses: { '202': { description: Varredura iniciada }, '409': { description: Já existe uma varredura em execução } }
+  /api/export.csv:
+    get:
+      summary: Exporta o retrato classificado em CSV
+      responses: { '200': { description: Download do arquivo CSV } }
+  /api/export.json:
+    get:
+      summary: Exporta o retrato classificado em JSON
+      responses: { '200': { description: Download do arquivo JSON } }
+components:
+  schemas:
+    CartaMercado:
+      type: object
+      description: Carta normal ou variante especial. Preços de foils não participam do ROI.
+      properties:
+        appid: { type: integer }
+        hash_name: { type: string }
+        name: { type: string }
+        is_foil: { type: boolean }
+        rarity: { type: string, nullable: true }
+        lowest_cents: { type: integer, nullable: true }
+        median_cents: { type: integer, nullable: true }
+        volume: { type: integer, nullable: true }
+        sell_listings: { type: integer, nullable: true }
+    OportunidadeDetalhada:
+      type: object
+      description: Oportunidade com cards normais usados no cálculo e special_cards informativas.
+      properties:
+        cards: { type: array, items: { $ref: '#/components/schemas/CartaMercado' } }
+        special_cards: { type: array, items: { $ref: '#/components/schemas/CartaMercado' } }
